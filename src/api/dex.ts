@@ -1,8 +1,15 @@
 // src/api/dex.ts
-
-
 import { HTTPClient } from '../core/http-client';
-import { SwapParams, SlippageOptions, OKXConfig, SwapConfig } from '../types';
+import {
+    SwapParams,
+    SlippageOptions,
+    OKXConfig,
+    QuoteParams,
+    QuoteData,
+    APIResponse,
+    APIRequestParams,
+    SwapResult
+} from '../types';
 import base58 from "bs58";
 import * as solanaWeb3 from "@solana/web3.js";
 import { Connection } from "@solana/web3.js";
@@ -13,33 +20,42 @@ export class DexAPI {
 
     constructor(
         private readonly client: HTTPClient,
-        private readonly config: OKXConfig & SwapConfig  // Add this line
+        private readonly config: OKXConfig
     ) { }
 
+    // Convert params to API format
+    private toAPIParams(params: Record<string, any>): APIRequestParams {
+        const apiParams: APIRequestParams = {};
 
-    // Get information about supported chains
-    async getSupportedChains(chainId?: string) {
+        for (const [key, value] of Object.entries(params)) {
+            if (value !== undefined) {
+                if (key === 'autoSlippage') {
+                    apiParams[key] = value ? 'true' : 'false';
+                } else {
+                    apiParams[key] = String(value);
+                }
+            }
+        }
+
+        return apiParams;
+    }
+
+    async getQuote(params: QuoteParams): Promise<APIResponse<QuoteData>> {
+        return this.client.request('GET', '/api/v5/dex/aggregator/quote',
+            this.toAPIParams(params));
+    }
+
+    async getLiquidity(chainId: string): Promise<APIResponse<QuoteData>> {
+        return this.client.request('GET', '/api/v5/dex/aggregator/get-liquidity',
+            this.toAPIParams({ chainId }));
+    }
+
+    async getSupportedChains(chainId: string): Promise<APIResponse<QuoteData>> {
         return this.client.request('GET', '/api/v5/dex/aggregator/supported/chain',
-            chainId ? { chainId } : undefined);
+            this.toAPIParams({ chainId }));
     }
 
-    // Get list of supported tokens for a chain
-    async getTokens(chainId: string) {
-        return this.client.request('GET', '/api/v5/dex/aggregator/all-tokens', { chainId });
-    }
-
-    // Get liquidity sources for a chain
-    async getLiquidity(chainId: string) {
-        return this.client.request('GET', '/api/v5/dex/aggregator/get-liquidity', { chainId });
-    }
-
-    // Get quote for a token swap
-    async getQuote(params: SwapParams & { slippage: string }) {
-        return this.client.request('GET', '/api/v5/dex/aggregator/quote', params);
-    }
-
-    // Get swap data with transaction details
-    async getSwapData(params: SwapParams & SlippageOptions) {
+    async getSwapData(params: SwapParams): Promise<APIResponse<QuoteData>> {
         // Validate slippage parameters
         if (!params.slippage && !params.autoSlippage) {
             throw new Error('Either slippage or autoSlippage must be provided');
@@ -56,28 +72,22 @@ export class DexAPI {
             throw new Error('maxAutoSlippageBps must be provided when autoSlippage is enabled');
         }
 
-        // Convert parameters for API
-        const apiParams: SwapParams = {
-            ...params,
-            autoSlippage: params.autoSlippage ? "true" : undefined,
-        };
-
-        return this.client.request('GET', '/api/v5/dex/aggregator/swap', apiParams);
+        return this.client.request('GET', '/api/v5/dex/aggregator/swap',
+            this.toAPIParams(params));
     }
-    async executeSwap(params: SwapParams & SlippageOptions) {
+
+    async executeSwap(params: SwapParams): Promise<SwapResult> {
         const swapData = await this.getSwapData(params);
 
-        // Handle different chains
         switch (params.chainId) {
             case '501': // Solana
                 return this.executeSolanaSwap(swapData, params);
-            // Add other chains as needed
             default:
                 throw new Error(`Chain ${params.chainId} not supported for swap execution`);
         }
     }
 
-    private async executeSolanaSwap(swapData: any, params: SwapParams) {
+    private async executeSolanaSwap(swapData: APIResponse<QuoteData>, params: SwapParams): Promise<SwapResult> {
         if (!this.config.solana) {
             throw new Error('Solana configuration required for Solana swaps');
         }
@@ -155,6 +165,7 @@ export class DexAPI {
                 await new Promise(resolve => setTimeout(resolve, 2000 * retryCount));
             }
         }
-    }
 
+        throw new Error("Max retries exceeded");
+    }
 }

@@ -1,9 +1,9 @@
 // example.ts or test.ts
-import { OKXDexClient } from './index';
+import { OKXDexClient } from '../index';
 import 'dotenv/config';
 
 const client = new OKXDexClient({
-    apiKey: process.env.OKX_API_KEY!,         // Using ! tells TypeScript we know this exists
+    apiKey: process.env.OKX_API_KEY!,
     secretKey: process.env.OKX_SECRET_KEY!,
     apiPassphrase: process.env.OKX_API_PASSPHRASE!,
     projectId: process.env.OKX_PROJECT_ID!
@@ -11,10 +11,6 @@ const client = new OKXDexClient({
 
 async function main() {
     try {
-        // Get supported chains
-        const chains = await client.dex.getSupportedChains();
-        console.log('Supported chains:', chains);
-
         // Get a quote
         const quote = await client.dex.getQuote({
             chainId: '501',
@@ -23,7 +19,7 @@ async function main() {
             amount: '1000000000',
             slippage: '0.1'
         });
-        console.log('Quote:', quote);
+        console.log('Swap Quote:', JSON.stringify(quote, null, 2));
     } catch (error) {
         console.error('Error:', error);
     }

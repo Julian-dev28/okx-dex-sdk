@@ -76,39 +76,81 @@ async function getTokenInfo(fromTokenAddress: string, toTokenAddress: string): P
     }
 }
 
+async function executeSwap(
+    fromTokenAddress: string,
+    toTokenAddress: string,
+    amount: string
+) {
+    // Get token information
+    console.log("\nGetting token information...");
+    const tokenInfo = await getTokenInfo(fromTokenAddress, toTokenAddress);
+
+    console.log('\nSwap Details:');
+    console.log('--------------------');
+    console.log(`From: ${tokenInfo.fromToken.symbol}`);
+    console.log(`To: ${tokenInfo.toToken.symbol}`);
+    console.log(`Amount: ${amount} ${tokenInfo.fromToken.symbol}`);
+
+    // Convert amount to base units
+    const rawAmount = (parseFloat(amount) * Math.pow(10, tokenInfo.fromToken.decimals)).toString();
+    console.log(`\nAmount in base units: ${rawAmount}`);
+
+    // Calculate USD value
+    const usdValue = (parseFloat(amount) * parseFloat(tokenInfo.fromToken.price)).toFixed(2);
+    console.log(`Approximate USD value: $${usdValue}`);
+
+    // Execute the swap
+    console.log("\nExecuting swap...");
+    const result = await client.dex.executeSwap({
+        chainId: '501',
+        fromTokenAddress,
+        toTokenAddress,
+        amount: rawAmount,
+        slippage: '0.5',
+        userWalletAddress: process.env.WALLET_ADDRESS
+    });
+
+    console.log('\nSwap completed successfully!');
+    console.log('--------------------');
+    console.log('Transaction ID:', result.transactionId);
+    console.log('Explorer URL:', result.explorerUrl);
+
+    return result;
+}
+
 async function main() {
     try {
-        const fromTokenAddress = '11111111111111111111111111111111'; // SOL
-        const toTokenAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'; // USDC
-        const amount = '.01'; // amount in SOL
+        const args = process.argv.slice(2);
 
-        // Get token information
-        console.log("Getting token information...");
-        const tokenInfo = await getTokenInfo(fromTokenAddress, toTokenAddress);
-        console.log(`From: ${tokenInfo.fromToken.symbol} (${tokenInfo.fromToken.decimals} decimals)`);
-        console.log(`To: ${tokenInfo.toToken.symbol} (${tokenInfo.toToken.decimals} decimals)`);
+        if (args.length !== 3) {
+            console.log('Usage: ts-node src/examples/solana-swap.ts <fromTokenAddress> <toTokenAddress> <amount>');
+            console.log('\nExample:');
+            console.log('  # Swap SOL to USDC');
+            console.log('  ts-node src/examples/solana-swap.ts So11111111111111111111111111111111111111112 EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v 0.1');
+            console.log('\n  # Swap USDC to BONK');
+            console.log('  ts-node src/examples/solana-swap.ts EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263 10');
+            process.exit(1);
+        }
 
-        // Convert amount to base units
-        const rawAmount = (parseFloat(amount) * Math.pow(10, tokenInfo.fromToken.decimals)).toString();
-        console.log(`Amount in ${tokenInfo.fromToken.symbol} base units:`, rawAmount);
+        const [fromTokenAddress, toTokenAddress, amount] = args;
+        // const fromTokenAddress = '11111111111111111111111111111111'
+        // const toTokenAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+        // const amount = ".01"
+
+        // Validate inputs
+        if (!fromTokenAddress || !toTokenAddress || !amount) {
+            throw new Error('Missing required parameters');
+        }
+
+        if (isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+            throw new Error('Amount must be a positive number');
+        }
 
         // Execute the swap
-        console.log("\nExecuting swap...");
-        const result = await client.dex.executeSwap({
-            chainId: '501',
-            fromTokenAddress,
-            toTokenAddress,
-            amount: rawAmount,
-            slippage: '0.5',
-            userWalletAddress: process.env.WALLET_ADDRESS
-        });
-
-        console.log('\nSwap completed successfully!');
-        console.log('Transaction ID:', result.transactionId);
-        console.log('Explorer URL:', result.explorerUrl);
+        await executeSwap(fromTokenAddress, toTokenAddress, amount);
 
     } catch (error) {
-        console.error('Error:', error instanceof Error ? error.message : 'Unknown error');
+        console.error('\nError:', error instanceof Error ? error.message : 'Unknown error');
         process.exit(1);
     }
 }

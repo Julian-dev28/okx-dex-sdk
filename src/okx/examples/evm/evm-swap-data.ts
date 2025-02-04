@@ -1,5 +1,5 @@
 // example.ts or test.ts
-import { OKXDexClient } from '../index';
+import { OKXDexClient } from '../../index';
 import 'dotenv/config';
 
 const client = new OKXDexClient({
@@ -9,15 +9,18 @@ const client = new OKXDexClient({
     projectId: process.env.OKX_PROJECT_ID!
 });
 
+const walletAddress = process.env.WALLET_ADDRESS!;
+
 async function main() {
     try {
         // Get a quote
-        const quote = await client.dex.getQuote({
-            chainId: '501',
-            fromTokenAddress: 'So11111111111111111111111111111111111111112',
-            toTokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-            amount: '1000000000',
-            slippage: '0.1'
+        const quote = await client.dex.getSwapData({
+            chainId: '1',
+            fromTokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+            toTokenAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+            amount: '10000000000000000000',
+            slippage: '0.1',
+            userWalletAddress: walletAddress
         });
         console.log('Swap Quote:', JSON.stringify(quote, null, 2));
     } catch (error) {

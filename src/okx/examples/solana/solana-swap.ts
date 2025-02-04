@@ -1,6 +1,6 @@
 // src/examples/solana-swap.ts
-import { OKXDexClient } from '../index';
-import { APIResponse, QuoteData, SwapResult, TokenInfo } from '../types';
+import { OKXDexClient } from '../../index';
+import { APIResponse, QuoteData, SwapResult, TokenInfo } from '../../types';
 import 'dotenv/config';
 
 // Validate environment variables

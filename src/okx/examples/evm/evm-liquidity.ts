@@ -1,5 +1,5 @@
 // example.ts or test.ts
-import { OKXDexClient } from '../index';
+import { OKXDexClient } from '../../index';
 import 'dotenv/config';
 
 const client = new OKXDexClient({
@@ -11,9 +11,8 @@ const client = new OKXDexClient({
 
 async function main() {
     try {
-        // Get tokens
-        const chains = await client.dex.getTokens("501");
-        console.log('Supported chains:', chains);
+        const chains = await client.dex.getLiquidity("1");
+        console.log('Supported chains:', JSON.stringify(chains, null, 2));
     } catch (error) {
         console.error('Error:', error);
     }
